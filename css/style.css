@@ -37,19 +37,29 @@ th { background: #f8f9fa; position: sticky; top: 0; color: #777;}
 }
 
 @media print {
-    /* Sembunyikan web saat mengeprint */
-    header, main { display: none !important; }
+    /* 1. Paksa browser menghilangkan header dan footer bawaan */
+    @page {
+        margin: 0; 
+    }
+
+    /* 2. Sembunyikan semua elemen web yang tidak perlu */
+    header, main { 
+        display: none !important; 
+    }
     
-    /* Tampilkan struk sesuai ukuran thermal */
+    /* 3. Pengaturan khusus struk agar rapi */
     #thermal-receipt { 
         display: block !important; 
-        width: 58mm; /* Sesuaikan dengan ukuran kertas, bisa diganti 80mm */
+        width: 58mm; /* Pastikan sesuai lebar kertas printer Anda */
         font-family: 'Courier New', Courier, monospace;
         font-size: 12px;
         color: #000;
         margin: 0;
-        padding: 0;
+        padding: 5px; /* Memberi jarak agar tidak terlalu mepet ke tepi kertas */
     }
+}    
+
+}
     .receipt-line { border-top: 1px dashed #000; margin: 5px 0; }
     .receipt-item { display: flex; justify-content: space-between; margin-bottom: 3px;}
     .receipt-text-small { font-size: 10px; }
