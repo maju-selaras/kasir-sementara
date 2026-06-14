@@ -4,10 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Kasir Retail Profesional</title>
-    <link rel="stylesheet" href="css/style.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f6f9; color: #333; }
+        header { background-color: #2c3e50; color: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .user-session select { padding: 8px; border-radius: 4px; border: none; font-size: 14px; font-weight: bold; }
+        .container { display: flex; gap: 20px; padding: 20px; height: calc(100vh - 80px); }
+        .panel { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .left-panel { flex: 1; min-width: 280px; }
+        .center-panel { flex: 2; min-width: 500px; }
+        .right-panel { flex: 1.5; min-width: 350px; }
+        h2 { font-size: 18px; margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+        hr { border: 0; height: 1px; background: #e0e0e0; margin: 20px 0; }
+        .upload-group, .form-group, .payment-group { margin-bottom: 15px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #555; }
+        input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .status-msg { display: block; margin-top: 5px; font-size: 12px; font-weight:bold; color: #e74c3c; }
+        .status-msg.success { color: #2ecc71; }
+        
+        /* Desain Tombol QTY (Plus Minus) */
+        .qty-control { display: flex; align-items: center; gap: 5px; }
+        .qty-input { width: 60px; padding: 6px; text-align: center; border: 1px solid #3498db; border-radius: 4px; font-weight: bold; font-size: 14px; }
+        .btn-qty { background-color: #ecf0f1; border: 1px solid #bdc3c7; color: #2c3e50; padding: 5px 12px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        .btn-qty:hover { background-color: #bdc3c7; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+        /* Tombol Aksi */
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-primary { background: #3498db; color: white; } .btn-primary:hover { background: #2980b9; }
+        .btn-success { background: #2ecc71; color: white; font-size: 16px; } .btn-success:hover { background: #27ae60; }
+        .btn-accent { background: #9b59b6; color: white; margin-bottom: 10px;} .btn-accent:hover { background: #8e44ad; }
+        .btn-danger { background: #e74c3c; color: white; padding: 5px 10px; font-size: 12px; width: auto;}
+        
+        /* Tabel Keranjang & Laporan */
+        .table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e0e0e0; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; position: sticky; top: 0; color: #777;}
+        .cart-summary { background: #fdfefe; border-top: 2px solid #34495e; padding-top: 15px; }
+        .cart-summary h3 { margin-bottom: 10px; font-size: 18px;}
+        #grand-total { color: #e74c3c; font-size: 22px; }
+
+        /* Setting Print Struk Thermal */
+        @media screen { #thermal-receipt { display: none; } }
+        @media print {
+            header, main { display: none !important; }
+            #thermal-receipt { 
+                display: block !important; 
+                width: 58mm; 
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 12px; color: #000; margin: 0; padding: 0;
+            }
+            .receipt-line { border-top: 1px dashed #000; margin: 5px 0; }
+            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 3px;}
+            .receipt-text-small { font-size: 10px; }
+        }
+    </style>
 </head>
 <body>
+
     <header>
         <h1>Sistem Kasir Retail POS</h1>
         <div class="user-session">
@@ -22,14 +80,14 @@
         <section class="panel left-panel">
             <h2>Pengaturan Master Data</h2>
             <div class="upload-group">
-                <label>Upload Master Produk (CSV/Excel):</label>
+                <label>Upload Excel/CSV Produk:</label>
                 <input type="file" id="upload-produk" accept=".csv, .xlsx, .xls">
-                <small id="status-produk" class="status-msg">Belum ada data produk</small>
+                <small id="status-produk" class="status-msg">Silakan upload data Produk</small>
             </div>
             <div class="upload-group">
-                <label>Upload Data User/Kasir (CSV/Excel):</label>
+                <label>Upload Excel/CSV Kasir (Log/Member):</label>
                 <input type="file" id="upload-user" accept=".csv, .xlsx, .xls">
-                <small id="status-user" class="status-msg">Belum ada data kasir</small>
+                <small id="status-user" class="status-msg">Silakan upload data Kasir</small>
             </div>
             <hr>
             <h2>Input Transaksi Baru</h2>
@@ -51,12 +109,12 @@
                     <thead>
                         <tr>
                             <th>PLU</th>
-                            <th>Deskripsi (s_descp)</th>
-                            <th>Harga Satuan</th>
+                            <th>Deskripsi Produk</th>
+                            <th>Harga</th>
                             <th>Qty</th>
                             <th>Promo</th>
-                            <th>Total</th>
-                            <th>Hapus</th>
+                            <th>Subtotal</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -66,7 +124,7 @@
                 <h3>Total Belanja: <span id="grand-total">Rp 0</span></h3>
                 <div class="payment-group">
                     <label>Uang Tunai (Bayar):</label>
-                    <input type="number" id="cash-payment" placeholder="Masukkan nominal...">
+                    <input type="number" id="cash-payment" placeholder="Masukkan nominal uang pembayaran...">
                 </div>
                 <h3>Kembalian: <span id="cash-return">Rp 0</span></h3>
                 <button id="btn-checkout" class="btn btn-success">Selesaikan & Cetak Struk</button>
@@ -83,9 +141,9 @@
                     <thead>
                         <tr>
                             <th>No. Reg</th>
-                            <th>Tanggal & Jam</th>
+                            <th>Waktu</th>
                             <th>Kasir</th>
-                            <th>Total Transaksi</th>
+                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -94,9 +152,336 @@
         </section>
     </main>
 
-    <div id="thermal-receipt">
-        </div>
+    <div id="thermal-receipt"></div>
 
-    <script src="js/app.js"></script>
+    <script>
+        let masterProduk = [];
+        let masterKasir = [];
+        let keranjang = [];
+        let laporanHarian = [];
+        let laporanDetail = [];
+        let nomorRegistrasiHarian = 1;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            updateNoRegistrasi();
+            
+            // Pasang Tombol Pendeteksi
+            document.getElementById("upload-produk").addEventListener("change", (e) => prosesUploadExcel(e, "produk"));
+            document.getElementById("upload-user").addEventListener("change", (e) => prosesUploadExcel(e, "user"));
+            
+            document.getElementById("btn-add-item").addEventListener("click", tambahKeKeranjang);
+            document.getElementById("search-product").addEventListener("keypress", (e) => {
+                if(e.key === 'Enter') tambahKeKeranjang();
+            });
+            
+            document.getElementById("cash-payment").addEventListener("input", hitungKembalian);
+            document.getElementById("btn-checkout").addEventListener("click", selesaikanTransaksi);
+            document.getElementById("btn-export-excel").addEventListener("click", eksporLaporanKeExcel);
+        });
+
+        function updateNoRegistrasi() {
+            const tanggalPrefix = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            document.getElementById("reg-number").value = `REG-${tanggalPrefix}-${String(nomorRegistrasiHarian).padStart(4, '0')}`;
+        }
+
+        // FUNGSI MEMBACA EXCEL / CSV (Dibuat lebih Tahan Banting)
+        function prosesUploadExcel(event, jenis) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Cek apakah library SheetJS sudah terload (koneksi internet aman)
+            if (typeof XLSX === 'undefined') {
+                alert("Sistem Kasir gagal terhubung ke sistem. Pastikan laptop Anda TERKONEKSI INTERNET, lalu muat ulang (Refresh) halaman ini.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" }); // defval agar data kosong tidak error
+
+                    if (jenis === "produk") {
+                        masterProduk = jsonData;
+                        const status = document.getElementById("status-produk");
+                        status.textContent = `Berhasil memuat ${masterProduk.length} Produk`;
+                        status.className = "status-msg success";
+                        alert(`Sukses! ${masterProduk.length} Data Produk berhasil dimasukkan ke mesin kasir.`);
+                    } else if (jenis === "user") {
+                        masterKasir = jsonData;
+                        const status = document.getElementById("status-user");
+                        status.textContent = `Berhasil memuat ${masterKasir.length} Data Kasir`;
+                        status.className = "status-msg success";
+                        isiDropdownKasir();
+                        alert(`Sukses! ${masterKasir.length} Data User/Kasir berhasil dimasukkan.`);
+                    }
+                } catch (error) {
+                    alert("Gagal membaca file. Pastikan format file adalah Excel (.xlsx) atau CSV (.csv).");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function isiDropdownKasir() {
+            const select = document.getElementById("cashier-select");
+            select.innerHTML = '<option value="">-- Pilih Kasir Anda --</option>';
+            
+            masterKasir.forEach(user => {
+                // Antisipasi perbedaan nama kolom (huruf besar/kecil di Excel)
+                const idKasir = user.kd_ksr || user.KD_KSR || user.kode_member || user.KODE_MEMBER || Object.values(user)[0];
+                const namaKasir = user.nama_member || user.NAMA_MEMBER || user.nama || user.NAMA || idKasir;
+                
+                if(idKasir) {
+                    const option = document.createElement("option");
+                    option.value = JSON.stringify({ kode: idKasir, nama: namaKasir });
+                    option.textContent = `${idKasir} - ${namaKasir}`;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        function tambahKeKeranjang() {
+            const inputKataKunci = document.getElementById("search-product").value.trim().toLowerCase();
+            if (!inputKataKunci) return;
+
+            // Cari produk secara akurat
+            const produk = masterProduk.find(p => {
+                let p_plu = String(p.plu || p.PLU || "").toLowerCase();
+                let p_barcode = String(p.barcode || p.BARCODE || "").toLowerCase();
+                return p_plu === inputKataKunci || p_barcode === inputKataKunci;
+            });
+
+            if (!produk) {
+                alert("Produk tidak ditemukan! Cek PLU/Barcode atau pastikan file Excel Produk sudah diupload.");
+                return;
+            }
+
+            // Ambil data harga dan deskripsi dari Excel dengan aman
+            const hargaSatuan = parseFloat(produk.price1 || produk.PRICE1 || 0);
+            const nilaiHemat = parseFloat(produk.disc1 || produk.DISC1 || 0); 
+            const namaProdukSDescp = produk.s_descp || produk.S_DESCP || produk.descp || "Produk Retail"; 
+            const kodeBarcode = produk.barcode || produk.BARCODE || "N/A";
+            const pluProd = produk.plu || produk.PLU || "N/A";
+
+            const itemEksis = keranjang.find(item => item.plu === pluProd);
+
+            if (itemEksis) {
+                itemEksis.qty += 1;
+                itemEksis.total = itemEksis.qty * (itemEksis.hargaSatuan - itemEksis.nilaiHemat);
+            } else {
+                keranjang.push({
+                    plu: pluProd,
+                    barcode: kodeBarcode,
+                    s_descp: namaProdukSDescp,
+                    hargaSatuan: hargaSatuan,
+                    qty: 1, 
+                    nilaiHemat: nilaiHemat,
+                    total: 1 * (hargaSatuan - nilaiHemat)
+                });
+            }
+
+            document.getElementById("search-product").value = ""; 
+            renderKeranjang();
+        }
+
+        function ubahQty(index, nilaiBaru) {
+            let qtyBaru = parseFloat(nilaiBaru);
+            if (isNaN(qtyBaru) || qtyBaru <= 0) {
+                alert("Mohon masukkan jumlah angka (Qty) yang benar!");
+                renderKeranjang(); 
+                return;
+            }
+            keranjang[index].qty = qtyBaru;
+            keranjang[index].total = qtyBaru * (keranjang[index].hargaSatuan - keranjang[index].nilaiHemat);
+            renderKeranjang();
+        }
+
+        function ubahQtyStep(index, langkah) {
+            let qtySekarang = parseFloat(keranjang[index].qty) || 0;
+            let qtyBaru = qtySekarang + langkah;
+            if (qtyBaru <= 0) return; 
+            ubahQty(index, qtyBaru);
+        }
+
+        function renderKeranjang() {
+            const tbody = document.querySelector("#cart-table tbody");
+            tbody.innerHTML = "";
+            let grandTotal = 0;
+
+            keranjang.forEach((item, index) => {
+                grandTotal += item.total;
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${item.plu}</td>
+                    <td>${item.s_descp}</td>
+                    <td>Rp ${item.hargaSatuan.toLocaleString('id-ID')}</td>
+                    <td>
+                        <div class="qty-control">
+                            <button class="btn-qty" onclick="ubahQtyStep(${index}, -1)">-</button>
+                            <input type="number" class="qty-input" step="any" min="0.001" value="${item.qty}" onchange="ubahQty(${index}, this.value)">
+                            <button class="btn-qty" onclick="ubahQtyStep(${index}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td>Rp ${item.nilaiHemat.toLocaleString('id-ID')}</td>
+                    <td>Rp ${item.total.toLocaleString('id-ID')}</td>
+                    <td><button class="btn btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById("grand-total").textContent = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+            hitungKembalian();
+        }
+
+        function hapusItem(index) {
+            keranjang.splice(index, 1);
+            renderKeranjang();
+        }
+
+        function hitungKembalian() {
+            const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9,-]/g, '')) || 0;
+            const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
+            const kembalian = uangBayar - grandTotal;
+            document.getElementById("cash-return").textContent = kembalian >= 0 ? `Rp ${kembalian.toLocaleString('id-ID')}` : "Rp 0";
+        }
+
+        function selesaikanTransaksi() {
+            const kasirSelect = document.getElementById("cashier-select");
+            if (!kasirSelect.value) { alert("Tolong Pilih Nama Kasir yang Aktif di sudut kanan atas terlebih dahulu!"); return; }
+            if (keranjang.length === 0) { alert("Keranjang belanja masih kosong!"); return; }
+
+            const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9,-]/g, '')) || 0;
+            const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
+
+            if (uangBayar < grandTotal) { alert("Uang tunai kurang dari total belanja!"); return; }
+
+            const waktuRealtime = new Date();
+            const strTglJam = waktuRealtime.toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dataKasir = JSON.parse(kasirSelect.value);
+            const noReg = document.getElementById("reg-number").value;
+
+            laporanHarian.push({
+                "No. Registrasi": noReg,
+                "Tanggal & Jam Transaksi": strTglJam,
+                "Kode Kasir": dataKasir.kode,
+                "Nama Kasir": dataKasir.nama,
+                "Total Belanja (Rp)": grandTotal,
+                "Uang Bayar (Rp)": uangBayar,
+                "Kembalian (Rp)": (uangBayar - grandTotal)
+            });
+
+            keranjang.forEach(item => {
+                laporanDetail.push({
+                    "No. Registrasi": noReg,
+                    "Kode Barcode Produk": item.barcode, 
+                    "Nama Produk": item.s_descp,         
+                    "Qty Belanja": item.qty,             
+                    "Harga Satuan": item.hargaSatuan,
+                    "Potongan Promo": item.nilaiHemat,
+                    "Subtotal": item.total
+                });
+            });
+
+            buatStrukThermal(noReg, strTglJam, dataKasir.kode, dataKasir.nama, grandTotal, uangBayar);
+            window.print();
+
+            renderLaporanTabel();
+            keranjang = [];
+            renderKeranjang();
+            document.getElementById("cash-payment").value = "";
+            nomorRegistrasiHarian++;
+            updateNoRegistrasi();
+        }
+
+        function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) {
+            const divStruk = document.getElementById("thermal-receipt");
+            let htmlBarang = "";
+            
+            keranjang.forEach(item => {
+                htmlBarang += `
+                    <div style="margin-bottom: 5px;">
+                        <div style="font-weight: bold;">${item.plu} - ${item.s_descp}</div>
+                        <div class="receipt-item">
+                            <span>${item.qty} x ${item.hargaSatuan.toLocaleString('id-ID')}</span>
+                            <span>${(item.qty * item.hargaSatuan).toLocaleString('id-ID')}</span>
+                        </div>
+                        ${item.nilaiHemat > 0 ? `
+                        <div class="receipt-item receipt-text-small">
+                            <i>Promo/Hemat:</i>
+                            <i>-${(item.nilaiHemat * item.qty).toLocaleString('id-ID')}</i>
+                        </div>` : ''}
+                    </div>
+                `;
+            });
+
+            divStruk.innerHTML = `
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h3>TOKO RETAIL</h3>
+                    <div class="receipt-line"></div>
+                    <p style="font-size: 11px;">
+                        No : ${noReg}<br>
+                        Tgl: ${strTglJam}<br>
+                        Ksr: ${kodeKasir} / ${namaKasir}
+                    </p>
+                </div>
+                <div class="receipt-line"></div>
+                
+                <div>${htmlBarang}</div>
+                
+                <div class="receipt-line"></div>
+                <div class="receipt-item" style="font-weight: bold; font-size: 14px;">
+                    <span>TOTAL:</span>
+                    <span>Rp ${total.toLocaleString('id-ID')}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>BAYAR:</span>
+                    <span>Rp ${bayar.toLocaleString('id-ID')}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>KEMBALI:</span>
+                    <span>Rp ${(bayar - total).toLocaleString('id-ID')}</span>
+                </div>
+                <div class="receipt-line"></div>
+                <div style="text-align: center; margin-top: 10px; font-size: 11px;">
+                    <p>Terima Kasih<br>Selamat Berbelanja Kembali</p>
+                </div>
+            `;
+        }
+
+        function renderLaporanTabel() {
+            const tbody = document.querySelector("#report-table tbody");
+            tbody.innerHTML = "";
+            laporanHarian.forEach(trx => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${trx["No. Registrasi"]}</td>
+                    <td>${trx["Tanggal & Jam Transaksi"]}</td>
+                    <td>${trx["Nama Kasir"]}</td>
+                    <td>Rp ${trx["Total Belanja (Rp)"].toLocaleString('id-ID')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function eksporLaporanKeExcel() {
+            if (laporanHarian.length === 0) {
+                alert("Belum ada transaksi sama sekali hari ini untuk diekspor!");
+                return;
+            }
+
+            const workbook = XLSX.utils.book_new();
+
+            const worksheet1 = XLSX.utils.json_to_sheet(laporanHarian);
+            XLSX.utils.book_append_sheet(workbook, worksheet1, "Laporan_Penjualan");
+
+            const worksheet2 = XLSX.utils.json_to_sheet(laporanDetail);
+            XLSX.utils.book_append_sheet(workbook, worksheet2, "Rincian_Belanja");
+
+            const namaFile = `Rekap_Transaksi_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(workbook, namaFile);
+        }
+    </script>
 </body>
 </html>
