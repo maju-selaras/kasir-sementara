@@ -115,26 +115,34 @@ function tambahKeKeranjang() {
     renderKeranjang();
 }
 
-// --- FUNGSI BARU: Mengubah QTY secara Dinamis (Mendukung Kiloan/Desimal) ---
+// --- FUNGSI UPDATE: Mengubah Qty dengan Ketik Manual (Kiloan/Desimal) ---
 function ubahQty(index, nilaiBaru) {
-    // Mengizinkan desimal (contoh 0.5 untuk 500 gram)
     let qtyBaru = parseFloat(nilaiBaru);
     
-    // Validasi agar tidak bernilai minus atau huruf
     if (isNaN(qtyBaru) || qtyBaru <= 0) {
         alert("Mohon masukkan jumlah angka (Qty) yang valid!");
-        renderKeranjang(); // Kembalikan ke angka semula
+        renderKeranjang(); // Kembalikan ke angka semula jika tidak valid
         return;
     }
 
-    // Update state keranjang
     keranjang[index].qty = qtyBaru;
     keranjang[index].total = qtyBaru * (keranjang[index].hargaSatuan - keranjang[index].nilaiHemat);
-    
-    // Render ulang tampilan agar total berubah
     renderKeranjang();
 }
 
+// --- FUNGSI UPDATE: Tombol Plus Minus Qty ---
+function ubahQtyStep(index, langkah) {
+    let qtySekarang = parseFloat(keranjang[index].qty) || 0;
+    let qtyBaru = qtySekarang + langkah;
+    
+    // Jangan biarkan qty menjadi 0 atau minus melalui tombol
+    if (qtyBaru <= 0) {
+        return; 
+    }
+    ubahQty(index, qtyBaru);
+}
+
+// --- FUNGSI RENDER KERANJANG YANG DIPERBARUI ---
 function renderKeranjang() {
     const tbody = document.querySelector("#cart-table tbody");
     tbody.innerHTML = "";
@@ -148,7 +156,11 @@ function renderKeranjang() {
             <td>${item.s_descp}</td>
             <td>Rp ${item.hargaSatuan.toLocaleString('id-ID')}</td>
             <td>
-                <input type="number" class="qty-input" step="any" min="0.001" value="${item.qty}" onchange="ubahQty(${index}, this.value)">
+                <div class="qty-control">
+                    <button class="btn-qty" onclick="ubahQtyStep(${index}, -1)">-</button>
+                    <input type="number" class="qty-input" step="any" min="0.001" value="${item.qty}" onchange="ubahQty(${index}, this.value)">
+                    <button class="btn-qty" onclick="ubahQtyStep(${index}, 1)">+</button>
+                </div>
             </td>
             <td>Rp ${item.nilaiHemat.toLocaleString('id-ID')}</td>
             <td>Rp ${item.total.toLocaleString('id-ID')}</td>
@@ -264,52 +276,4 @@ function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) 
         <div class="receipt-line"></div>
         <div class="receipt-item" style="font-weight: bold; font-size: 14px;">
             <span>TOTAL:</span>
-            <span>Rp ${total.toLocaleString('id-ID')}</span>
-        </div>
-        <div class="receipt-item">
-            <span>BAYAR:</span>
-            <span>Rp ${bayar.toLocaleString('id-ID')}</span>
-        </div>
-        <div class="receipt-item">
-            <span>KEMBALI:</span>
-            <span>Rp ${(bayar - total).toLocaleString('id-ID')}</span>
-        </div>
-        <div class="receipt-line"></div>
-        <div style="text-align: center; margin-top: 10px; font-size: 11px;">
-            <p>Terima Kasih<br>Selamat Berbelanja Kembali</p>
-        </div>
-    `;
-}
-
-function renderLaporanTabel() {
-    const tbody = document.querySelector("#report-table tbody");
-    tbody.innerHTML = "";
-    laporanHarian.forEach(trx => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${trx["No. Registrasi"]}</td>
-            <td>${trx["Tanggal & Jam Transaksi"]}</td>
-            <td>${trx["Nama Kasir"]}</td>
-            <td>Rp ${trx["Total Belanja (Rp)"].toLocaleString('id-ID')}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function eksporLaporanKeExcel() {
-    if (laporanHarian.length === 0) {
-        alert("Belum ada transaksi untuk diekspor!");
-        return;
-    }
-
-    const workbook = XLSX.utils.book_new();
-
-    const worksheet1 = XLSX.utils.json_to_sheet(laporanHarian);
-    XLSX.utils.book_append_sheet(workbook, worksheet1, "Laporan_Penjualan");
-
-    const worksheet2 = XLSX.utils.json_to_sheet(laporanDetail);
-    XLSX.utils.book_append_sheet(workbook, worksheet2, "Rincian_Belanja");
-
-    const namaFile = `Rekap_Transaksi_${new Date().toISOString().slice(0,10)}.xlsx`;
-    XLSX.writeFile(workbook, namaFile);
-}
+            <span>Rp ${total.
