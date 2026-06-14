@@ -1,38 +1,36 @@
-// --- State Global Aplikasi ---
+// --- State Global ---
 let masterProduk = [];
 let masterKasir = [];
 let keranjang = [];
-let daftarTransaksi = [];
-let nomorRegistrasiSekarang = 100001; // Mulai dari No Reg ini
+let laporanHarian = []; // Untuk Sheet 1 (Laporan Penjualan)
+let laporanDetail = []; // Untuk Sheet 2 (Rincian Produk)
+let nomorRegistrasiHarian = 1;
 
-// Inisialisasi saat aplikasi pertama dibuka
 document.addEventListener("DOMContentLoaded", () => {
     updateNoRegistrasi();
-    setupEventListeners();
-});
-
-function updateNoRegistrasi() {
-    document.getElementById("reg-number").value = `TRX-${nomorRegistrasiSekarang}`;
-}
-
-function setupEventListeners() {
-    // Event Handler Input Excel/CSV
-    document.getElementById("upload-produk").addEventListener("change", (e) => handleFileUpload(e, "produk"));
-    document.getElementById("upload-user").addEventListener("change", (e) => handleFileUpload(e, "user"));
     
-    // Event Operasional POS
-    document.getElementById("btn-add-item").addEventListener("click", tambahItemKeKeranjang);
+    // Event Listeners Upload Data
+    document.getElementById("upload-produk").addEventListener("change", (e) => prosesUploadExcel(e, "produk"));
+    document.getElementById("upload-user").addEventListener("change", (e) => prosesUploadExcel(e, "user"));
+    
+    // Event Operasional
+    document.getElementById("btn-add-item").addEventListener("click", tambahKeKeranjang);
     document.getElementById("search-product").addEventListener("keypress", (e) => {
-        if(e.key === 'Enter') tambahItemKeKeranjang();
+        if(e.key === 'Enter') tambahKeKeranjang();
     });
     
     document.getElementById("cash-payment").addEventListener("input", hitungKembalian);
-    document.getElementById("btn-checkout").addEventListener("click", prosesCheckout);
+    document.getElementById("btn-checkout").addEventListener("click", selesaikanTransaksi);
     document.getElementById("btn-export-excel").addEventListener("click", eksporLaporanKeExcel);
+});
+
+function updateNoRegistrasi() {
+    const tanggalPrefix = new Date().toISOString().slice(0,10).replace(/-/g,"");
+    document.getElementById("reg-number").value = `REG-${tanggalPrefix}-${String(nomorRegistrasiHarian).padStart(4, '0')}`;
 }
 
-// --- Fungsi Membaca File Excel / CSV ---
-function handleFileUpload(event, tipe) {
+// --- Membaca Excel ---
+function prosesUploadExcel(event, jenis) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -40,80 +38,81 @@ function handleFileUpload(event, tipe) {
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        if (tipe === "produk") {
+        if (jenis === "produk") {
             masterProduk = jsonData;
             const status = document.getElementById("status-produk");
             status.textContent = `Berhasil memuat ${masterProduk.length} Produk`;
             status.className = "status-msg success";
-        } else if (tipe === "user") {
+        } else if (jenis === "user") {
             masterKasir = jsonData;
             const status = document.getElementById("status-user");
-            status.textContent = `Berhasil memuat ${masterKasir.length} Kasir`;
+            status.textContent = `Berhasil memuat ${masterKasir.length} Data User`;
             status.className = "status-msg success";
-            populateKasirDropdown();
+            isiDropdownKasir();
         }
     };
     reader.readAsArrayBuffer(file);
 }
 
-// Mengisi pilihan kasir berdasarkan excel yang diupload
-function populateKasirDropdown() {
+function isiDropdownKasir() {
     const select = document.getElementById("cashier-select");
     select.innerHTML = '<option value="">-- Pilih Kasir --</option>';
     
     masterKasir.forEach(user => {
-        // Menyesuaikan nama kolom berdasarkan dataset (contoh: nama_member/kd_ksr/nama)
-        const namaUser = user.nama_member || user.nama || user.kd_ksr || Object.values(user)[1];
-        const kodeUser = user.kode_member || user.kd_ksr || Object.values(user)[0];
+        const idKasir = user.kd_ksr || user.kode_member || Object.values(user)[0];
+        const namaKasir = user.nama_member || user.nama || idKasir;
         
-        if(namaUser) {
-            const opt = document.createElement("option");
-            opt.value = kodeUser;
-            opt.textContent = `${kodeUser} - ${namaUser}`;
-            select.appendChild(opt);
+        if(idKasir) {
+            const option = document.createElement("option");
+            option.value = JSON.stringify({ kode: idKasir, nama: namaKasir }); // Simpan kode dan nama
+            option.textContent = `${idKasir} - ${namaKasir}`;
+            select.appendChild(option);
         }
     });
 }
 
-// --- Logika Keranjang Belanja ---
-function tambahItemKeKeranjang() {
-    const inputKeyword = document.getElementById("search-product").value.trim();
-    if (!inputKeyword) return;
+// --- Keranjang Belanja ---
+function tambahKeKeranjang() {
+    const inputKataKunci = document.getElementById("search-product").value.trim().toLowerCase();
+    if (!inputKataKunci) return;
 
-    // Cari berdasarkan 'plu' atau 'barcode' dari sheet Excel produk yang diupload
-    const produk = masterProduk.find(p => String(p.plu) === inputKeyword || String(p.barcode) === inputKeyword);
+    const produk = masterProduk.find(p => 
+        String(p.plu).toLowerCase() === inputKataKunci || 
+        String(p.barcode).toLowerCase() === inputKataKunci
+    );
 
     if (!produk) {
-        alert("Produk tidak ditemukan! Periksa kembali kode PLU/Barcode atau pastikan Master Data sudah diupload.");
+        alert("Produk tidak ditemukan! Cek PLU/Barcode atau pastikan Master Produk telah di-upload.");
         return;
     }
 
-    // Ambil data harga dan potongan harga (berdasarkan format database Anda)
     const hargaSatuan = parseFloat(produk.price1) || 0;
-    const diskonRp = parseFloat(produk.disc1) || 0; // Mengakomodasi kolom hemat/diskon
+    const nilaiHemat = parseFloat(produk.disc1) || 0; // Kolom diskon
+    // Sesuai request: Ambil deskripsi dari s_descp
+    const namaProdukSDescp = produk.s_descp || produk.descp || "Produk Retail"; 
+    const kodeBarcode = produk.barcode || "N/A";
 
-    // Cek apakah barang sudah ada di keranjang
     const itemEksis = keranjang.find(item => item.plu === produk.plu);
 
     if (itemEksis) {
         itemEksis.qty += 1;
-        itemEksis.total = itemEksis.qty * (itemEksis.hargaSatuan - itemEksis.diskonRp);
+        itemEksis.total = itemEksis.qty * (itemEksis.hargaSatuan - itemEksis.nilaiHemat);
     } else {
         keranjang.push({
             plu: produk.plu,
-            descp: produk.descp,
+            barcode: kodeBarcode,
+            s_descp: namaProdukSDescp,
             hargaSatuan: hargaSatuan,
             qty: 1,
-            diskonRp: diskonRp,
-            total: 1 * (hargaSatuan - diskonRp)
+            nilaiHemat: nilaiHemat,
+            total: 1 * (hargaSatuan - nilaiHemat)
         });
     }
 
-    document.getElementById("search-product").value = ""; // reset input
+    document.getElementById("search-product").value = ""; 
     renderKeranjang();
 }
 
@@ -127,10 +126,10 @@ function renderKeranjang() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${item.plu}</td>
-            <td>${item.descp}</td>
+            <td>${item.s_descp}</td>
             <td>Rp ${item.hargaSatuan.toLocaleString('id-ID')}</td>
             <td>${item.qty}</td>
-            <td>Rp ${item.diskonRp.toLocaleString('id-ID')}</td>
+            <td>Rp ${item.nilaiHemat.toLocaleString('id-ID')}</td>
             <td>Rp ${item.total.toLocaleString('id-ID')}</td>
             <td><button class="btn btn-danger" onclick="hapusItem(${index})">X</button></td>
         `;
@@ -148,135 +147,160 @@ function hapusItem(index) {
 
 function hitungKembalian() {
     const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9]/g, '')) || 0;
-    const cashPayment = parseFloat(document.getElementById("cash-payment").value) || 0;
-    const kembalian = cashPayment - grandTotal;
-
+    const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
+    const kembalian = uangBayar - grandTotal;
     document.getElementById("cash-return").textContent = kembalian >= 0 ? `Rp ${kembalian.toLocaleString('id-ID')}` : "Rp 0";
 }
 
-// --- Proses Checkout & Cetak Struk ---
-function prosesCheckout() {
+// --- Checkout & Struk Thermal (Sesuai Syarat Baru) ---
+function selesaikanTransaksi() {
     const kasirSelect = document.getElementById("cashier-select");
-    if (!kasirSelect.value) {
-        alert("Pilih Kasir aktif terlebih dahulu sebelum bertransaksi!");
-        return;
-    }
-    if (keranjang.length === 0) {
-        alert("Keranjang belanja masih kosong!");
-        return;
-    }
+    if (!kasirSelect.value) { alert("Pilih Kasir terlebih dahulu!"); return; }
+    if (keranjang.length === 0) { alert("Keranjang kosong!"); return; }
 
     const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9]/g, '')) || 0;
-    const cashPayment = parseFloat(document.getElementById("cash-payment").value) || 0;
+    const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
 
-    if (cashPayment < grandTotal) {
-        alert("Pembayaran tunai kurang!");
-        return;
-    }
+    if (uangBayar < grandTotal) { alert("Uang pembayaran kurang!"); return; }
 
-    const waktuSekarang = new Date();
-    const stringWaktu = waktuSekarang.toLocaleDateString('id-ID') + ' ' + waktuSekarang.toLocaleTimeString('id-ID');
-    const namaKasir = kasirSelect.options[kasirSelect.selectedIndex].text;
+    // Waktu realtime untuk cetak & excel
+    const waktuRealtime = new Date();
+    const strTglJam = waktuRealtime.toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    // Parse data kasir (Kode & Nama)
+    const dataKasir = JSON.parse(kasirSelect.value);
     const noReg = document.getElementById("reg-number").value;
 
-    // 1. Simpan Ke Laporan Harian
-    daftarTransaksi.push({
-        noReg: noReg,
-        waktu: stringWaktu,
-        kasir: namaKasir,
-        total: grandTotal
+    // 1. Simpan ke Laporan Harian (Sheet 1)
+    laporanHarian.push({
+        "No. Registrasi": noReg,
+        "Tanggal & Jam Transaksi": strTglJam, // Realtime di excel
+        "Kode Kasir": dataKasir.kode,
+        "Nama Kasir": dataKasir.nama,
+        "Total Belanja (Rp)": grandTotal,
+        "Uang Bayar (Rp)": uangBayar,
+        "Kembalian (Rp)": (uangBayar - grandTotal)
     });
 
-    // 2. Buat Struk Kasir Thermal (HTML Print Only)
-    buatStrukThermal(noReg, stringWaktu, namaKasir, grandTotal, cashPayment);
+    // 2. Simpan Rincian Pembelanjaan (Sheet 2)
+    keranjang.forEach(item => {
+        laporanDetail.push({
+            "No. Registrasi": noReg,
+            "Kode Barcode Produk": item.barcode, // Sesuai syarat
+            "Nama Produk": item.s_descp,         // Sesuai syarat
+            "Qty Belanja": item.qty,             // Sesuai syarat
+            "Harga Satuan": item.hargaSatuan,
+            "Potongan Promo": item.nilaiHemat,
+            "Subtotal": item.total
+        });
+    });
 
-    // 3. Trigger Print Window (Otomatis memotong/mencetak pada printer thermal)
+    // 3. Render HTML untuk Struk Thermal
+    buatStrukThermal(noReg, strTglJam, dataKasir.kode, dataKasir.nama, grandTotal, uangBayar);
+
+    // 4. Print otomatis
     window.print();
 
-    // 4. Update UI untuk Transaksi Berikutnya
-    renderLaporan();
+    // 5. Reset UI Transaksi
+    renderLaporanTabel();
     keranjang = [];
     renderKeranjang();
     document.getElementById("cash-payment").value = "";
-    nomorRegistrasiSekarang++;
+    nomorRegistrasiHarian++;
     updateNoRegistrasi();
 }
 
-function buatStrukThermal(noReg, waktu, kasir, total, bayar) {
-    const containerStruk = document.getElementById("thermal-receipt");
-    let itemsHtml = "";
+function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) {
+    const divStruk = document.getElementById("thermal-receipt");
+    let htmlBarang = "";
     
+    // Perulangan Data Barang untuk Struk (Menampilkan PLU, s_descp, harga, qty, diskon)
     keranjang.forEach(item => {
-        itemsHtml += `
-            <div class="receipt-item">
-                <span>${item.descp} (x${item.qty})</span>
-                <span>${item.total.toLocaleString('id-ID')}</span>
+        htmlBarang += `
+            <div style="margin-bottom: 5px;">
+                <div style="font-weight: bold;">${item.plu} - ${item.s_descp}</div>
+                <div class="receipt-item">
+                    <span>${item.qty} x ${item.hargaSatuan.toLocaleString('id-ID')}</span>
+                    <span>${(item.qty * item.hargaSatuan).toLocaleString('id-ID')}</span>
+                </div>
+                ${item.nilaiHemat > 0 ? `
+                <div class="receipt-item receipt-text-small">
+                    <i>Promo/Hemat:</i>
+                    <i>-${(item.nilaiHemat * item.qty).toLocaleString('id-ID')}</i>
+                </div>` : ''}
             </div>
-            ${item.diskonRp > 0 ? `<div class="receipt-item" style="font-size:10px; padding-left:10px;"><i>Hemat: -${(item.diskonRp * item.qty).toLocaleString('id-ID')}</i></div>` : ''}
         `;
     });
 
-    containerStruk.innerHTML = `
-        <div class="receipt-header">
-            <h4>RETAIL MART</h4>
-            <p>Jl. Jenderal Sudirman No. 12</p>
+    // Template keseluruhan struk
+    divStruk.innerHTML = `
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h3>TOKO RETAIL</h3>
             <div class="receipt-line"></div>
-            <p>No: ${noReg}<br>Tgl: ${waktu}<br>Kasir: ${kasir}</p>
+            <p style="font-size: 11px;">
+                No : ${noReg}<br>
+                Tgl: ${strTglJam}<br>
+                Ksr: ${kodeKasir} / ${namaKasir}
+            </p>
         </div>
         <div class="receipt-line"></div>
-        <div class="receipt-body">
-            ${itemsHtml}
+        
+        <div>${htmlBarang}</div>
+        
+        <div class="receipt-line"></div>
+        <div class="receipt-item" style="font-weight: bold; font-size: 14px;">
+            <span>TOTAL:</span>
+            <span>Rp ${total.toLocaleString('id-ID')}</span>
+        </div>
+        <div class="receipt-item">
+            <span>BAYAR:</span>
+            <span>Rp ${bayar.toLocaleString('id-ID')}</span>
+        </div>
+        <div class="receipt-item">
+            <span>KEMBALI:</span>
+            <span>Rp ${(bayar - total).toLocaleString('id-ID')}</span>
         </div>
         <div class="receipt-line"></div>
-        <div class="receipt-total">
-            <div class="receipt-item"><span>TOTAL:</span><span>Rp ${total.toLocaleString('id-ID')}</span></div>
-            <div class="receipt-item"><span>BAYAR:</span><span>Rp ${bayar.toLocaleString('id-ID')}</span></div>
-            <div class="receipt-item"><span>KEMBALI:</span><span>Rp ${(bayar - total).toLocaleString('id-ID')}</span></div>
-        </div>
-        <div class="receipt-line"></div>
-        <div class="receipt-footer">
+        <div style="text-align: center; margin-top: 10px; font-size: 11px;">
             <p>Terima Kasih<br>Selamat Berbelanja Kembali</p>
         </div>
     `;
 }
 
-function renderLaporan() {
+function renderLaporanTabel() {
     const tbody = document.querySelector("#report-table tbody");
     tbody.innerHTML = "";
-    
-    daftarTransaksi.forEach(trx => {
+    laporanHarian.forEach(trx => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>${trx.noReg}</td>
-            <td>${trx.waktu}</td>
-            <td>${trx.kasir}</td>
-            <td>Rp ${trx.total.toLocaleString('id-ID')}</td>
+            <td>${trx["No. Registrasi"]}</td>
+            <td>${trx["Tanggal & Jam Transaksi"]}</td>
+            <td>${trx["Nama Kasir"]}</td>
+            <td>Rp ${trx["Total Belanja (Rp)"].toLocaleString('id-ID')}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// --- Fungsi Ekspor Laporan Harian ke Excel ---
+// --- Ekspor Excel (2 Sheet Sesuai Permintaan) ---
 function eksporLaporanKeExcel() {
-    if (daftarTransaksi.length === 0) {
-        alert("Belum ada data transaksi untuk diekspor hari ini.");
+    if (laporanHarian.length === 0) {
+        alert("Belum ada transaksi untuk diekspor!");
         return;
     }
 
-    // Format data agar rapi dan profesional di Excel
-    const dataSiapEkspor = daftarTransaksi.map(trx => ({
-        "No. Registrasi": trx.noReg,
-        "Tanggal & Jam Transaksi": trx.waktu,
-        "Nama User / Kasir": trx.kasir,
-        "Total Omset Penjualan (IDR)": trx.total
-    }));
-
-    // Membuat Worksheet & Workbook dengan SheetJS
-    const worksheet = XLSX.utils.json_to_sheet(dataSiapEkspor);
+    // Membuat file excel baru
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Penjualan Harian");
 
-    // Unduh File Excel secara otomatis ke komputer pengguna
-    const tglHariIni = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `LAPORAN_KASIR_${tglHariIni}.xlsx`);
+    // Sheet 1: Laporan Harian (Header Penjualan)
+    const worksheet1 = XLSX.utils.json_to_sheet(laporanHarian);
+    XLSX.utils.book_append_sheet(workbook, worksheet1, "Laporan_Penjualan");
+
+    // Sheet 2: Rincian Pembelanjaan (Detail Item)
+    const worksheet2 = XLSX.utils.json_to_sheet(laporanDetail);
+    XLSX.utils.book_append_sheet(workbook, worksheet2, "Rincian_Belanja");
+
+    // Unduh otomatis
+    const namaFile = `Rekap_Transaksi_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(workbook, namaFile);
 }
