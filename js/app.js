@@ -276,4 +276,52 @@ function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) 
         <div class="receipt-line"></div>
         <div class="receipt-item" style="font-weight: bold; font-size: 14px;">
             <span>TOTAL:</span>
-            <span>Rp ${total.
+            <span>Rp ${total.toLocaleString('id-ID')}</span>
+        </div>
+        <div class="receipt-item">
+            <span>BAYAR:</span>
+            <span>Rp ${bayar.toLocaleString('id-ID')}</span>
+        </div>
+        <div class="receipt-item">
+            <span>KEMBALI:</span>
+            <span>Rp ${(bayar - total).toLocaleString('id-ID')}</span>
+        </div>
+        <div class="receipt-line"></div>
+        <div style="text-align: center; margin-top: 10px; font-size: 11px;">
+            <p>Terima Kasih<br>Selamat Berbelanja Kembali</p>
+        </div>
+    `;
+}
+
+function renderLaporanTabel() {
+    const tbody = document.querySelector("#report-table tbody");
+    tbody.innerHTML = "";
+    laporanHarian.forEach(trx => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${trx["No. Registrasi"]}</td>
+            <td>${trx["Tanggal & Jam Transaksi"]}</td>
+            <td>${trx["Nama Kasir"]}</td>
+            <td>Rp ${trx["Total Belanja (Rp)"].toLocaleString('id-ID')}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function eksporLaporanKeExcel() {
+    if (laporanHarian.length === 0) {
+        alert("Belum ada transaksi untuk diekspor!");
+        return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    const worksheet1 = XLSX.utils.json_to_sheet(laporanHarian);
+    XLSX.utils.book_append_sheet(workbook, worksheet1, "Laporan_Penjualan");
+
+    const worksheet2 = XLSX.utils.json_to_sheet(laporanDetail);
+    XLSX.utils.book_append_sheet(workbook, worksheet2, "Rincian_Belanja");
+
+    const namaFile = `Rekap_Transaksi_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(workbook, namaFile);
+}
