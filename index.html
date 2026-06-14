@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Kasir Retail Profesional</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Sistem Kasir POS - Retail Modern</h1>
+        <div class="user-session">
+            <label for="cashier-select">Kasir Aktif:</label>
+            <select id="cashier-select">
+                <option value="">-- Pilih Kasir --</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="panel left-panel">
+            <h2>Data & Pengaturan</h2>
+            <div class="upload-group">
+                <label>Upload Master Produk (CSV/XLSX):</label>
+                <input type="file" id="upload-produk" accept=".csv, .xlsx, .xls">
+                <small id="status-produk" class="status-msg">Belum diunduh</small>
+            </div>
+            <div class="upload-group">
+                <label>Upload Master User/Kasir (CSV/XLSX):</label>
+                <input type="file" id="upload-user" accept=".csv, .xlsx, .xls">
+                <small id="status-user" class="status-msg">Belum diunduh</small>
+            </div>
+
+            <hr>
+
+            <h2>Transaksi Baru</h2>
+            <div class="form-group">
+                <label>No. Registrasi (Auto):</label>
+                <input type="text" id="reg-number" readonly>
+            </div>
+            <div class="form-group">
+                <label>Cari Produk (PLU / Barcode):</label>
+                <input type="text" id="search-product" placeholder="Masukkan PLU atau Barcode...">
+            </div>
+            <button id="btn-add-item" class="btn btn-primary">Tambah ke Keranjang</button>
+        </section>
+
+        <section class="panel center-panel">
+            <h2>Keranjang Belanja</h2>
+            <div class="table-wrapper">
+                <table id="cart-table">
+                    <thead>
+                        <tr>
+                            <th>PLU</th>
+                            <th>Nama Produk</th>
+                            <th>Harga Satuan</th>
+                            <th>Qty</th>
+                            <th>Hemat/Promo</th>
+                            <th>Total</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <div class="cart-summary">
+                <h3>Total Belanja: <span id="grand-total">Rp 0</span></h3>
+                <div class="payment-group">
+                    <label>Bayar (Tunai):</label>
+                    <input type="number" id="cash-payment" placeholder="0">
+                </div>
+                <h3>Kembalian: <span id="cash-return">Rp 0</span></h3>
+                <button id="btn-checkout" class="btn btn-success">Selesaikan Transaksi & Cetak Struk</button>
+            </div>
+        </section>
+
+        <section class="panel right-panel">
+            <h2>Laporan Transaksi Harian</h2>
+            <div class="report-actions">
+                <button id="btn-export-excel" class="btn btn-accent">Ekspor Laporan ke Excel</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="report-table">
+                    <thead>
+                        <tr>
+                            <th>No. Reg</th>
+                            <th>Tanggal & Jam</th>
+                            <th>Kasir</th>
+                            <th>Total Belanja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="thermal-receipt" class="print-only">
+        </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
