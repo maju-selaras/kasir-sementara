@@ -2,8 +2,8 @@
 let masterProduk = [];
 let masterKasir = [];
 let keranjang = [];
-let laporanHarian = []; // Untuk Sheet 1 (Laporan Penjualan)
-let laporanDetail = []; // Untuk Sheet 2 (Rincian Produk)
+let laporanHarian = []; // Untuk Sheet 1
+let laporanDetail = []; // Untuk Sheet 2
 let nomorRegistrasiHarian = 1;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -67,7 +67,7 @@ function isiDropdownKasir() {
         
         if(idKasir) {
             const option = document.createElement("option");
-            option.value = JSON.stringify({ kode: idKasir, nama: namaKasir }); // Simpan kode dan nama
+            option.value = JSON.stringify({ kode: idKasir, nama: namaKasir });
             option.textContent = `${idKasir} - ${namaKasir}`;
             select.appendChild(option);
         }
@@ -90,8 +90,7 @@ function tambahKeKeranjang() {
     }
 
     const hargaSatuan = parseFloat(produk.price1) || 0;
-    const nilaiHemat = parseFloat(produk.disc1) || 0; // Kolom diskon
-    // Sesuai request: Ambil deskripsi dari s_descp
+    const nilaiHemat = parseFloat(produk.disc1) || 0; 
     const namaProdukSDescp = produk.s_descp || produk.descp || "Produk Retail"; 
     const kodeBarcode = produk.barcode || "N/A";
 
@@ -106,13 +105,33 @@ function tambahKeKeranjang() {
             barcode: kodeBarcode,
             s_descp: namaProdukSDescp,
             hargaSatuan: hargaSatuan,
-            qty: 1,
+            qty: 1, // Default Qty = 1
             nilaiHemat: nilaiHemat,
             total: 1 * (hargaSatuan - nilaiHemat)
         });
     }
 
     document.getElementById("search-product").value = ""; 
+    renderKeranjang();
+}
+
+// --- FUNGSI BARU: Mengubah QTY secara Dinamis (Mendukung Kiloan/Desimal) ---
+function ubahQty(index, nilaiBaru) {
+    // Mengizinkan desimal (contoh 0.5 untuk 500 gram)
+    let qtyBaru = parseFloat(nilaiBaru);
+    
+    // Validasi agar tidak bernilai minus atau huruf
+    if (isNaN(qtyBaru) || qtyBaru <= 0) {
+        alert("Mohon masukkan jumlah angka (Qty) yang valid!");
+        renderKeranjang(); // Kembalikan ke angka semula
+        return;
+    }
+
+    // Update state keranjang
+    keranjang[index].qty = qtyBaru;
+    keranjang[index].total = qtyBaru * (keranjang[index].hargaSatuan - keranjang[index].nilaiHemat);
+    
+    // Render ulang tampilan agar total berubah
     renderKeranjang();
 }
 
@@ -128,7 +147,9 @@ function renderKeranjang() {
             <td>${item.plu}</td>
             <td>${item.s_descp}</td>
             <td>Rp ${item.hargaSatuan.toLocaleString('id-ID')}</td>
-            <td>${item.qty}</td>
+            <td>
+                <input type="number" class="qty-input" step="any" min="0.001" value="${item.qty}" onchange="ubahQty(${index}, this.value)">
+            </td>
             <td>Rp ${item.nilaiHemat.toLocaleString('id-ID')}</td>
             <td>Rp ${item.total.toLocaleString('id-ID')}</td>
             <td><button class="btn btn-danger" onclick="hapusItem(${index})">X</button></td>
@@ -146,35 +167,32 @@ function hapusItem(index) {
 }
 
 function hitungKembalian() {
-    const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9]/g, '')) || 0;
+    const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9,-]/g, '')) || 0;
     const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
     const kembalian = uangBayar - grandTotal;
     document.getElementById("cash-return").textContent = kembalian >= 0 ? `Rp ${kembalian.toLocaleString('id-ID')}` : "Rp 0";
 }
 
-// --- Checkout & Struk Thermal (Sesuai Syarat Baru) ---
+// --- Checkout & Struk Thermal ---
 function selesaikanTransaksi() {
     const kasirSelect = document.getElementById("cashier-select");
     if (!kasirSelect.value) { alert("Pilih Kasir terlebih dahulu!"); return; }
     if (keranjang.length === 0) { alert("Keranjang kosong!"); return; }
 
-    const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9]/g, '')) || 0;
+    const grandTotal = parseFloat(document.getElementById("grand-total").textContent.replace(/[^0-9,-]/g, '')) || 0;
     const uangBayar = parseFloat(document.getElementById("cash-payment").value) || 0;
 
     if (uangBayar < grandTotal) { alert("Uang pembayaran kurang!"); return; }
 
-    // Waktu realtime untuk cetak & excel
     const waktuRealtime = new Date();
     const strTglJam = waktuRealtime.toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    // Parse data kasir (Kode & Nama)
     const dataKasir = JSON.parse(kasirSelect.value);
     const noReg = document.getElementById("reg-number").value;
 
-    // 1. Simpan ke Laporan Harian (Sheet 1)
+    // Simpan ke Laporan Harian
     laporanHarian.push({
         "No. Registrasi": noReg,
-        "Tanggal & Jam Transaksi": strTglJam, // Realtime di excel
+        "Tanggal & Jam Transaksi": strTglJam,
         "Kode Kasir": dataKasir.kode,
         "Nama Kasir": dataKasir.nama,
         "Total Belanja (Rp)": grandTotal,
@@ -182,26 +200,23 @@ function selesaikanTransaksi() {
         "Kembalian (Rp)": (uangBayar - grandTotal)
     });
 
-    // 2. Simpan Rincian Pembelanjaan (Sheet 2)
+    // Simpan Rincian Pembelanjaan
     keranjang.forEach(item => {
         laporanDetail.push({
             "No. Registrasi": noReg,
-            "Kode Barcode Produk": item.barcode, // Sesuai syarat
-            "Nama Produk": item.s_descp,         // Sesuai syarat
-            "Qty Belanja": item.qty,             // Sesuai syarat
+            "Kode Barcode Produk": item.barcode, 
+            "Nama Produk": item.s_descp,         
+            "Qty Belanja": item.qty,             
             "Harga Satuan": item.hargaSatuan,
             "Potongan Promo": item.nilaiHemat,
             "Subtotal": item.total
         });
     });
 
-    // 3. Render HTML untuk Struk Thermal
     buatStrukThermal(noReg, strTglJam, dataKasir.kode, dataKasir.nama, grandTotal, uangBayar);
-
-    // 4. Print otomatis
     window.print();
 
-    // 5. Reset UI Transaksi
+    // Reset UI
     renderLaporanTabel();
     keranjang = [];
     renderKeranjang();
@@ -214,8 +229,8 @@ function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) 
     const divStruk = document.getElementById("thermal-receipt");
     let htmlBarang = "";
     
-    // Perulangan Data Barang untuk Struk (Menampilkan PLU, s_descp, harga, qty, diskon)
     keranjang.forEach(item => {
+        // Tampilkan Qty sesuai dengan apa yang diinput (bisa desimal)
         htmlBarang += `
             <div style="margin-bottom: 5px;">
                 <div style="font-weight: bold;">${item.plu} - ${item.s_descp}</div>
@@ -232,7 +247,6 @@ function buatStrukThermal(noReg, strTglJam, kodeKasir, namaKasir, total, bayar) 
         `;
     });
 
-    // Template keseluruhan struk
     divStruk.innerHTML = `
         <div style="text-align: center; margin-bottom: 10px;">
             <h3>TOKO RETAIL</h3>
@@ -282,25 +296,20 @@ function renderLaporanTabel() {
     });
 }
 
-// --- Ekspor Excel (2 Sheet Sesuai Permintaan) ---
 function eksporLaporanKeExcel() {
     if (laporanHarian.length === 0) {
         alert("Belum ada transaksi untuk diekspor!");
         return;
     }
 
-    // Membuat file excel baru
     const workbook = XLSX.utils.book_new();
 
-    // Sheet 1: Laporan Harian (Header Penjualan)
     const worksheet1 = XLSX.utils.json_to_sheet(laporanHarian);
     XLSX.utils.book_append_sheet(workbook, worksheet1, "Laporan_Penjualan");
 
-    // Sheet 2: Rincian Pembelanjaan (Detail Item)
     const worksheet2 = XLSX.utils.json_to_sheet(laporanDetail);
     XLSX.utils.book_append_sheet(workbook, worksheet2, "Rincian_Belanja");
 
-    // Unduh otomatis
     const namaFile = `Rekap_Transaksi_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(workbook, namaFile);
 }
