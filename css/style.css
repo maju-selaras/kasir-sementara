@@ -54,3 +54,22 @@ th { background: #f8f9fa; position: sticky; top: 0; color: #777;}
     .receipt-item { display: flex; justify-content: space-between; margin-bottom: 3px;}
     .receipt-text-small { font-size: 10px; }
 }
+
+
+/* --- Input Edit Qty di Tabel Keranjang --- */
+.qty-input {
+    width: 70px;
+    padding: 6px;
+    text-align: center;
+    border: 1px solid #3498db;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.qty-input:focus {
+    outline: none;
+    border-color: #e74c3c;
+    box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
+}
