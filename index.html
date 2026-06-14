@@ -155,6 +155,25 @@
     <div id="thermal-receipt"></div>
 
     <script>
+	// Fungsi untuk mengaktifkan/menonaktifkan seluruh sistem transaksi
+function aturKunciSistem(isLocked) {
+    const tombolTransaksi = document.getElementById("btn-add-item");
+    const tombolCheckout = document.getElementById("btn-checkout");
+    const inputProduk = document.getElementById("search-product");
+    const inputBayar = document.getElementById("cash-payment");
+
+    // Jika isLocked true, maka tombol tidak bisa diklik (disabled)
+    tombolTransaksi.disabled = isLocked;
+    tombolCheckout.disabled = isLocked;
+    inputProduk.disabled = isLocked;
+    inputBayar.disabled = isLocked;
+
+    if (isLocked) {
+        inputProduk.placeholder = "Pilih Kasir Terlebih Dahulu...";
+    } else {
+        inputProduk.placeholder = "Ketik PLU / Barcode & Tekan Enter...";
+    }
+}
         let masterProduk = [];
         let masterKasir = [];
         let keranjang = [];
@@ -165,6 +184,11 @@
         document.addEventListener("DOMContentLoaded", () => {
             updateNoRegistrasi();
             
+			// TAMBAHKAN INI: Kunci sistem saat aplikasi baru terbuka
+    aturKunciSistem(true); 
+    
+    // ... kode event listener lainnya
+	
             // Pasang Tombol Pendeteksi
             document.getElementById("upload-produk").addEventListener("change", (e) => prosesUploadExcel(e, "produk"));
             document.getElementById("upload-user").addEventListener("change", (e) => prosesUploadExcel(e, "user"));
@@ -225,22 +249,35 @@
         }
 
         function isiDropdownKasir() {
-            const select = document.getElementById("cashier-select");
-            select.innerHTML = '<option value="">-- Pilih Kasir Anda --</option>';
-            
-            masterKasir.forEach(user => {
-                // Antisipasi perbedaan nama kolom (huruf besar/kecil di Excel)
-                const idKasir = user.kd_ksr || user.KD_KSR || user.kode_member || user.KODE_MEMBER || Object.values(user)[0];
-                const namaKasir = user.nama_member || user.NAMA_MEMBER || user.nama || user.NAMA || idKasir;
-                
-                if(idKasir) {
-                    const option = document.createElement("option");
-                    option.value = JSON.stringify({ kode: idKasir, nama: namaKasir });
-                    option.textContent = `${idKasir} - ${namaKasir}`;
-                    select.appendChild(option);
-                }
-            });
+    const select = document.getElementById("cashier-select");
+    
+    // Kunci sistem di awal sebelum kasir dipilih
+    aturKunciSistem(true);
+
+    select.innerHTML = '<option value="">-- Pilih Kasir Anda --</option>';
+    
+    masterKasir.forEach(user => {
+        const idKasir = user.kd_ksr || user.KD_KSR || user.kode_member || user.KODE_MEMBER || Object.values(user)[0];
+        const namaKasir = user.nama_member || user.NAMA_MEMBER || user.nama || user.NAMA || idKasir;
+        
+        if(idKasir) {
+            const option = document.createElement("option");
+            option.value = JSON.stringify({ kode: idKasir, nama: namaKasir });
+            option.textContent = `${idKasir} - ${namaKasir}`;
+            select.appendChild(option);
         }
+    });
+
+    // Tambahkan event listener untuk memantau perubahan kasir
+    select.onchange = function() {
+        if (this.value !== "") {
+            aturKunciSistem(false); // Buka kunci jika kasir dipilih
+            alert("Kasir aktif: " + JSON.parse(this.value).nama);
+        } else {
+            aturKunciSistem(true); // Kunci kembali jika pilihan dikosongkan
+        }
+    };
+}
 
         function tambahKeKeranjang() {
             const inputKataKunci = document.getElementById("search-product").value.trim().toLowerCase();
