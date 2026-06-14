@@ -73,3 +73,43 @@ th { background: #f8f9fa; position: sticky; top: 0; color: #777;}
     border-color: #e74c3c;
     box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
 }
+
+/* --- Desain Tombol Qty (Plus & Minus) --- */
+.qty-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.qty-input {
+    width: 60px;
+    padding: 6px;
+    text-align: center;
+    border: 1px solid #3498db;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.btn-qty {
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    color: #2c3e50;
+    padding: 5px 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-qty:hover {
+    background-color: #bdc3c7;
+}
+
+/* Hilangkan panah default pada input number di beberapa browser */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
